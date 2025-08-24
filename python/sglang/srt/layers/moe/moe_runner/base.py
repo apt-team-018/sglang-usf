@@ -14,11 +14,13 @@ from sglang.srt.layers.moe.token_dispatcher import (
     DispatchOutput,
     DispatchOutputFormat,
 )
+from sglang.srt.layers.moe.utils import MoeRunnerBackend
 
 if TYPE_CHECKING:
     from sglang.srt.layers.moe.moe_runner.triton import (
         TritonRunnerInput,
         TritonRunnerOutput,
+        TritonRunnerCore,
     )
 
 
@@ -45,23 +47,27 @@ class MoeRunnerConfig:
     gemm1_clamp_limit: Optional[float] = None
 
 
-class RunnerInputFormat(Enum):
-    TRITON = "triton"
-
-
-class RunnerOutputFormat(Enum):
-    TRITON = "triton"
-
-
 @dataclass
 class RunnerInput(ABC):
 
+    @property
     @abstractmethod
-    def get_format(self) -> RunnerInputFormat:
-        pass
+    def runner_backend(self) -> MoeRunnerBackend:
+        ...
 
-    def format_is_triton(self) -> TypeGuard[TritonRunnerInput]:
-        return self.get_format() == RunnerInputFormat.TRITON
+    def runner_backend_is_triton(self) -> TypeGuard[TritonRunnerInput]:
+        return self.runner_backend == MoeRunnerBackend.TRITON
+
+
+class RunnerOutput(ABC):
+
+    @property
+    @abstractmethod
+    def runner_backend(self) -> MoeRunnerBackend:
+        ...
+
+    def runner_backend_is_triton(self) -> TypeGuard[TritonRunnerOutput]:
+        return self.runner_backend == MoeRunnerBackend.TRITON
 
 
 @dataclass
@@ -69,16 +75,6 @@ class MoeQuantInfo(ABC):
     """Moe quantication data."""
 
     pass
-
-
-class RunnerOutput(ABC):
-
-    @abstractmethod
-    def get_format(self) -> RunnerOutputFormat:
-        pass
-
-    def format_is_triton(self) -> TypeGuard[TritonRunnerOutput]:
-        return self.get_format() == RunnerOutputFormat.TRITON
 
 
 class MoeRunnerCore(ABC):
@@ -94,13 +90,11 @@ class MoeRunnerCore(ABC):
 
     @property
     @abstractmethod
-    def input_format(cls) -> RunnerInputFormat:
-        pass
+    def runner_backend(cls) -> MoeRunnerBackend:
+        ...
 
-    @property
-    @abstractmethod
-    def output_format(cls) -> RunnerOutputFormat:
-        pass
+    def runner_backend_is_triton(self) -> TypeGuard[TritonRunnerCore]:
+        return self.runner_backend == MoeRunnerBackend.TRITON
 
 
 class FusedOpPool:
@@ -128,10 +122,10 @@ class FusedOpPool:
 class PermuteMethodPool:
 
     _pre_permute_methods: dict[
-        Tuple[DispatchOutputFormat, RunnerInputFormat], Callable
+        Tuple[DispatchOutputFormat, MoeRunnerBackend], Callable
     ] = {}
     _post_permute_methods: dict[
-        Tuple[RunnerOutputFormat, CombineInputFormat], Callable
+        Tuple[MoeRunnerBackend, CombineInputFormat], Callable
     ] = {}
 
     @classmethod
@@ -142,10 +136,10 @@ class PermuteMethodPool:
         permute_func: Callable,
     ):
         """
-        Register a customized pre-permute function for the given DispatchOutputFormat and RunnerInputFormat.
+        Register a customized pre-permute function for the given DispatchOutputFormat and MoeRunnerBackend.
 
         :param dispatch_output_name: The DispatchOutputFormat name.
-        :param runner_input_name: The RunnerInputFormat name.
+        :param runner_input_name: The MoeRunnerBackend name.
         :param permute_func: The permute function to register.
         """
         key = (dispatch_output_name, runner_input_name)
@@ -163,9 +157,9 @@ class PermuteMethodPool:
         permute_func: Callable,
     ):
         """
-        Register a customized post-permute function for the given RunnerOutputFormat and CombineInputFormat.
+        Register a customized post-permute function for the given MoeRunnerBackend and CombineInputFormat.
 
-        :param runner_output_name: The RunnerOutputFormat name.
+        :param runner_output_name: The MoeRunnerBackend name.
         :param combine_input_name: The CombineInputFormat name.
         :param permute_func: The permute function to register.
         """
@@ -180,13 +174,13 @@ class PermuteMethodPool:
     def get_pre_permute(
         cls,
         dispatch_output_format: DispatchOutputFormat,
-        runner_input_format: RunnerInputFormat,
+        runner_input_format: MoeRunnerBackend,
     ) -> Callable:
         """
-        Retrieve the pre-permute function for the given DispatchOutputFormat and RunnerInputFormat.
+        Retrieve the pre-permute function for the given DispatchOutputFormat and MoeRunnerBackend.
 
         :param dispatch_output_format: The DispatchOutputFormat type.
-        :param runner_input_format: The RunnerInputFormat type.
+        :param runner_input_format: The MoeRunnerBackend type.
         :return: The registered permute function or None if not found.
         """
         key = (dispatch_output_format, runner_input_format)
@@ -199,13 +193,13 @@ class PermuteMethodPool:
     @classmethod
     def get_post_permute(
         cls,
-        runner_output_format: RunnerOutputFormat,
+        runner_output_format: MoeRunnerBackend,
         combine_input_format: CombineInputFormat,
     ) -> Callable:
         """
-        Retrieve the post-permute function for the given RunnerOutputFormat and CombineInputFormat.
+        Retrieve the post-permute function for the given MoeRunnerBackend and CombineInputFormat.
 
-        :param runner_output_format: The RunnerOutputFormat type.
+        :param runner_output_format: The MoeRunnerBackend type.
         :param combine_input_format: The CombineInputFormat type.
         :return: The registered permute function or None if not found.
         """
@@ -222,10 +216,10 @@ def register_fused_func(
     runner_name: str,
 ) -> Callable:
     """
-    Decorator to register a fused function for the given DispatchOutputFormat and RunnerInputFormat.
+    Decorator to register a fused function for the given DispatchOutputFormat and MoeRunnerBackend.
 
     :param dispatch_name: The DispatchOutputFormat name.
-    :param runner_name: The RunnerInputFormat name.
+    :param runner_name: The MoeRunnerBackend name.
     :param fused_func: The fused function to register.
     :return: The decorator function.
     """
@@ -242,10 +236,10 @@ def register_pre_permute(
     runner_input_name: str,
 ) -> Callable:
     """
-    Decorator to register a pre-permute function for the given DispatchOutputFormat and RunnerInputFormat.
+    Decorator to register a pre-permute function for the given DispatchOutputFormat and MoeRunnerBackend.
 
     :param dispatch_output_name: The DispatchOutputFormat name.
-    :param runner_input_name: The RunnerInputFormat name.
+    :param runner_input_name: The MoeRunnerBackend name.
     :return: The decorator function.
     """
 
@@ -268,9 +262,9 @@ def register_post_permute(
     combine_input_name: str,
 ) -> Callable:
     """
-    Decorator to register a post-permute function for the given RunnerOutputFormat and CombineInputFormat.
+    Decorator to register a post-permute function for the given MoeRunnerBackend and CombineInputFormat.
 
-    :param runner_output_name: The RunnerOutputFormat name.
+    :param runner_output_name: The MoeRunnerBackend name.
     :param combine_input_name: The CombineInputFormat name.
     :return: The decorator function.
     """

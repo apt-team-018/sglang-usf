@@ -14,9 +14,7 @@ from sglang.srt.layers.moe.moe_runner.base import (
     MoeRunnerCore,
     PermuteMethodPool,
     RunnerInput,
-    RunnerInputFormat,
     RunnerOutput,
-    RunnerOutputFormat,
     register_fused_func,
     register_post_permute,
     register_pre_permute,
@@ -25,10 +23,9 @@ from sglang.srt.layers.moe.token_dispatcher import (
     StandardCombineInput,
     StandardDispatchOutput,
 )
+from sglang.srt.layers.moe.utils import MoeRunnerBackend
 from sglang.srt.utils import cpu_has_amx_support, is_cpu, is_cuda, is_hip
-
-if TYPE_CHECKING:
-    from sglang.srt.layers.moe.topk import StandardTopKOutput
+from sglang.srt.layers.moe.topk import TopKOutputChecker
 
 _is_hip = is_hip()
 _is_cuda = is_cuda()
@@ -65,9 +62,10 @@ class TritonRunnerInput(RunnerInput):
     sorted_token_ids: torch.Tensor
     expert_ids: torch.Tensor
     num_tokens_post_padded: torch.Tensor
-
-    def get_format(self) -> RunnerInputFormat:
-        return RunnerInputFormat.TRITON
+    
+    @property
+    def runner_backend(self) -> MoeRunnerBackend:
+        return MoeRunnerBackend.TRITON
 
 
 @dataclass
@@ -75,8 +73,9 @@ class TritonRunnerOutput(RunnerOutput):
 
     hidden_states: torch.Tensor
 
-    def get_format(self) -> RunnerOutputFormat:
-        return RunnerOutputFormat.TRITON
+    @property
+    def runner_backend(self) -> MoeRunnerBackend:
+        return MoeRunnerBackend.TRITON
 
 
 @dataclass
@@ -317,12 +316,8 @@ class TritonRunnerCore(MoeRunnerCore):
         )
 
     @property
-    def input_format(self) -> RunnerInputFormat:
-        return RunnerInputFormat.TRITON
-
-    @property
-    def output_format(self) -> RunnerOutputFormat:
-        return RunnerOutputFormat.TRITON
+    def runner_backend(self) -> MoeRunnerBackend:
+        return MoeRunnerBackend.TRITON
 
 
 @register_fused_func("standard", "triton")
@@ -368,7 +363,6 @@ def pre_permute_standard_to_triton(
     running_state: dict,
 ) -> TritonRunnerInput:
 
-    # TODO: move these functions to the triton runner
     from sglang.srt.layers.moe.fused_moe_triton.fused_moe import (
         get_config_dtype_str,
         moe_align_block_size,
@@ -376,6 +370,9 @@ def pre_permute_standard_to_triton(
     )
 
     hidden_states, topk_output = dispatch_output
+    
+    assert TopKOutputChecker.format_is_standard(topk_output)
+    
     num_tokens = hidden_states.shape[0]
     num_local_experts = runner_config.num_local_experts
 

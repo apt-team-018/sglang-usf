@@ -123,7 +123,6 @@ class CombineInputFormat(Enum):
     STANDARD = "standard"
     DEEPEP_NORMAL = "deepep_normal"
     DEEPEP_LL = "deepep_ll"
-    ASCENT_LL = "ascent_ll"
 
 
 @runtime_checkable
