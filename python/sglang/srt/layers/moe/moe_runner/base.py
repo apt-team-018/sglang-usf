@@ -14,7 +14,7 @@ from sglang.srt.layers.moe.token_dispatcher import (
     DispatchOutput,
     DispatchOutputFormat,
 )
-from sglang.srt.layers.moe.utils import MoeRunnerBackend
+from sglang.srt.layers.moe.utils import MoeA2ABackend, MoeRunnerBackend
 
 if TYPE_CHECKING:
     from sglang.srt.layers.moe.moe_runner.triton import (
@@ -110,6 +110,8 @@ class FusedOpPool:
             raise ValueError(
                 f"Fused function for {dispatch_name} to {runner_name} is already registered."
             )
+        assert MoeA2ABackend(dispatch_name), f"Invalid dispatch name: {dispatch_name}"
+        assert MoeRunnerBackend(runner_name), f"Invalid runner name: {runner_name}"
         cls._fused_funcs[key] = fused_func
 
     @classmethod
@@ -132,41 +134,43 @@ class PermuteMethodPool:
     def register_pre_permute(
         cls,
         dispatch_output_name: str,
-        runner_input_name: str,
+        runner_backend_name: str,
         permute_func: Callable,
     ):
         """
         Register a customized pre-permute function for the given DispatchOutputFormat and MoeRunnerBackend.
 
         :param dispatch_output_name: The DispatchOutputFormat name.
-        :param runner_input_name: The MoeRunnerBackend name.
+        :param runner_backend_name: The MoeRunnerBackend name.
         :param permute_func: The permute function to register.
         """
-        key = (dispatch_output_name, runner_input_name)
+        key = (dispatch_output_name, runner_backend_name)
         if key in cls._pre_permute_methods:
             raise ValueError(
-                f"Pre-permute method for {dispatch_output_name} to {runner_input_name} is already registered."
+                f"Pre-permute method for {dispatch_output_name} to {runner_backend_name} is already registered."
             )
+        assert MoeRunnerBackend(runner_backend_name), f"Invalid runner backend name: {runner_backend_name}"
+        # TODO: ASSERT dispatch_output_name is valid
         cls._pre_permute_methods[key] = permute_func
 
     @classmethod
     def register_post_permute(
         cls,
-        runner_output_name: str,
+        runner_backend_name: str,
         combine_input_name: str,
         permute_func: Callable,
     ):
         """
         Register a customized post-permute function for the given MoeRunnerBackend and CombineInputFormat.
 
-        :param runner_output_name: The MoeRunnerBackend name.
+        :param runner_backend_name: The MoeRunnerBackend name.
         :param combine_input_name: The CombineInputFormat name.
         :param permute_func: The permute function to register.
         """
-        key = (runner_output_name, combine_input_name)
+        key = (runner_backend_name, combine_input_name)
         if key in cls._post_permute_methods:
             raise ValueError(
-                f"Post-permute method for {runner_output_name} to {combine_input_name} is already registered."
+                f"Post-permute method for {runner_backend_name} to {combine_input_name} is already registered."
             )
         cls._post_permute_methods[key] = permute_func
 
@@ -220,7 +224,6 @@ def register_fused_func(
 
     :param dispatch_name: The DispatchOutputFormat name.
     :param runner_name: The MoeRunnerBackend name.
-    :param fused_func: The fused function to register.
     :return: The decorator function.
     """
 
@@ -233,13 +236,13 @@ def register_fused_func(
 
 def register_pre_permute(
     dispatch_output_name: str,
-    runner_input_name: str,
+    runner_backend_name: str,
 ) -> Callable:
     """
     Decorator to register a pre-permute function for the given DispatchOutputFormat and MoeRunnerBackend.
 
     :param dispatch_output_name: The DispatchOutputFormat name.
-    :param runner_input_name: The MoeRunnerBackend name.
+    :param runner_backend_name: The MoeRunnerBackend name.
     :return: The decorator function.
     """
 
@@ -250,7 +253,7 @@ def register_pre_permute(
     ) -> Callable:
 
         PermuteMethodPool.register_pre_permute(
-            dispatch_output_name, runner_input_name, permute_func
+            dispatch_output_name, runner_backend_name, permute_func
         )
         return permute_func
 
@@ -258,13 +261,13 @@ def register_pre_permute(
 
 
 def register_post_permute(
-    runner_output_name: str,
+    runner_backend_name: str,
     combine_input_name: str,
 ) -> Callable:
     """
     Decorator to register a post-permute function for the given MoeRunnerBackend and CombineInputFormat.
 
-    :param runner_output_name: The MoeRunnerBackend name.
+    :param runner_backend_name: The MoeRunnerBackend name.
     :param combine_input_name: The CombineInputFormat name.
     :return: The decorator function.
     """
@@ -275,7 +278,7 @@ def register_post_permute(
         ]
     ) -> Callable:
         PermuteMethodPool.register_post_permute(
-            runner_output_name, combine_input_name, permute_func
+            runner_backend_name, combine_input_name, permute_func
         )
         return permute_func
 
