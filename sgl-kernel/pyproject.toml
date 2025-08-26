@@ -18,11 +18,20 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Environment :: GPU :: NVIDIA CUDA"
 ]
-dependencies = []
+dependencies = [
+    "pybase64",
+    "pydantic",
+    "openai",
+    "partial_json_parser",
+    "fastapi",
+    "sentencepiece",
+    "uvloop",
+    "transformers-usf"
+]
 
 [project.urls]
-"Homepage" = "https://github.com/sgl-project/sglang/tree/main/sgl-kernel"
-"Bug Tracker" = "https://github.com/sgl-project/sglang/issues"
+"Homepage" = "https://github.com/apt-team-018/sglang-usf/tree/main/sgl-kernel"
+"Bug Tracker" = "https://github.com/apt-team-018/sglang-usf/issues"
 
 [tool.wheel]
 exclude = [

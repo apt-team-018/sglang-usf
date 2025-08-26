@@ -16,6 +16,10 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 
+[project.urls]
+"Homepage" = "https://github.com/apt-team-018/sglang-usf/tree/main/sgl-router"
+"Bug Tracker" = "https://github.com/apt-team-018/sglang-usf/issues"
+
 [project.optional-dependencies]
 dev = [
     "requests>=2.25.0",
