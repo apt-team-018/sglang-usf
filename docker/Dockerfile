@@ -56,8 +56,11 @@ RUN mkdir -p /tmp/gdrcopy && cd /tmp \
  && dpkg -i gdrdrv-dkms_*.deb libgdrapi_*.deb gdrcopy-tests_*.deb gdrcopy_*.deb \
  && cd / && rm -rf /tmp/gdrcopy
 
-# Fix DeepEP IBGDA symlink
-RUN ln -sf /usr/lib/x86_64-linux-gnu/libmlx5.so.1 /usr/lib/x86_64-linux-gnu/libmlx5.so
+# Fix DeepEP IBGDA symlink - make it architecture aware
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ -f "/usr/lib/${ARCH}-linux-gnu/libmlx5.so.1" ]; then \
+        ln -sf /usr/lib/${ARCH}-linux-gnu/libmlx5.so.1 /usr/lib/${ARCH}-linux-gnu/libmlx5.so; \
+    fi
 
 FROM scratch AS local_src
 COPY . /src
@@ -70,7 +73,7 @@ COPY --from=local_src /src /tmp/local_src
 RUN if [ "$BRANCH_TYPE" = "local" ]; then \
         cp -r /tmp/local_src /sgl-workspace/sglang; \
     else \
-        git clone --depth=1 https://github.com/sgl-project/sglang.git /sgl-workspace/sglang; \
+        git clone --depth=1 https://github.com/apt-team-018/sglang-usf.git /sgl-workspace/sglang; \
     fi \
  && rm -rf /tmp/local_src
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel html5lib six \
@@ -81,15 +84,10 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel html5li
       12.9.1) CUINDEX=129 ;; \
       *) echo "Unsupported CUDA version: $CUDA_VERSION" && exit 1 ;; \
     esac \
+ && CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5 python3 -m pip install --no-cache-dir -e "sgl-kernel/" --extra-index-url https://download.pytorch.org/whl/cu${CUINDEX} \
  && python3 -m pip install --no-cache-dir -e "python[${BUILD_TYPE}]" --extra-index-url https://download.pytorch.org/whl/cu${CUINDEX} \
  && python3 -m pip install --no-cache-dir nvidia-nccl-cu12==2.27.6 --force-reinstall --no-deps \
- && python3 -m flashinfer --download-cubin \
- && if [ "$CUDA_VERSION" = "12.8.1" ]; then \
-      python3 -m pip install --no-cache-dir https://github.com/sgl-project/whl/releases/download/v0.3.5/sgl_kernel-0.3.5+cu128-cp310-abi3-manylinux2014_x86_64.whl --force-reinstall --no-deps ; \
-    fi \
- && if [ "$CUDA_VERSION" = "12.9.1" ]; then \
-      python3 -m pip install --no-cache-dir https://github.com/sgl-project/whl/releases/download/v0.3.5/sgl_kernel-0.3.5+cu129-cp310-abi3-manylinux2014_x86_64.whl --force-reinstall --no-deps ; \
-    fi
+ && python3 -m flashinfer --download-cubin
 
 # Download source files
 RUN wget https://developer.download.nvidia.com/compute/redist/nvshmem/3.3.9/source/nvshmem_src_cuda12-all-all-3.3.9.tar.gz && \

@@ -3,6 +3,10 @@ project(sgl-kernel LANGUAGES CXX CUDA)
 
 # CMake
 cmake_policy(SET CMP0169 OLD)
+# Handle compatibility with older dependencies
+set(CMAKE_POLICY_DEFAULT_CMP0000 NEW)
+# Add the CMAKE_POLICY_VERSION_MINIMUM as a cache variable to override CMake checks
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version")
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
