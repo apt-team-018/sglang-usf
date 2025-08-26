@@ -292,3 +292,29 @@ if not (_is_cuda or _is_hip or _is_npu or (_is_cpu and _is_cpu_amx_available)):
         "sgl-kernel layernorm implementation is not available on current platform. Fallback to other kernel libraries."
     )
     from vllm.model_executor.layers.layernorm import GemmaRMSNorm, RMSNorm
+
+class Omega3RMSNorm(nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.zeros(dim))
+
+    def _norm(self, x):
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+
+    def forward(self, x):
+        output = self._norm(x.float())
+        # Llama does x.to(float16) * w whilst Omega3 is (x * w).to(float16)
+        # See https://github.com/huggingface/transformers/pull/29402
+        output = output * (1.0 + self.weight.float())
+        return output.type_as(x)
+
+    def extra_repr(self):
+        return f"{tuple(self.weight.shape)}, eps={self.eps}"
+
+
+if not (_is_cuda or _is_hip or _is_npu or (_is_cpu and _is_cpu_amx_available)):
+    logger.info(
+        "sgl-kernel layernorm implementation is not available on current platform. Fallback to other kernel libraries."
+    )
+    from vllm.model_executor.layers.layernorm import GemmaRMSNorm, RMSNorm
