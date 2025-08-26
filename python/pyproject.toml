@@ -65,8 +65,8 @@ runtime_common = [
 
 srt = [
     "sglang[runtime_common]",
-    "torch==2.8.0",
-    "torchaudio==2.8.0",
+    "torch==2.7.0",
+    "torchaudio==2.7.0",
     "torchvision",
     "cuda-python",
     "flashinfer_python==0.2.14.post1",
@@ -75,8 +75,8 @@ srt = [
 
 blackwell = [
     "sglang[runtime_common]",
-    "torch==2.8.0",
-    "torchaudio==2.8.0",
+    "torch==2.7.0",
+    "torchaudio==2.7.0",
     "torchvision",
     "cuda-python",
     "flashinfer_python==0.2.14.post1",

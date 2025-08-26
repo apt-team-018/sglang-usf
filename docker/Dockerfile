@@ -35,6 +35,7 @@ RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
     librdmacm1 libnl-3-200 libnl-route-3-200 libnl-route-3-dev libnl-3-dev \
     ibverbs-providers infiniband-diags perftest \
     libgoogle-glog-dev libgtest-dev libjsoncpp-dev libunwind-dev \
+    nlohmann-json3-dev \
     libboost-all-dev libssl-dev \
     libgrpc-dev libgrpc++-dev libprotobuf-dev protobuf-compiler-grpc \
     pybind11-dev \
@@ -84,7 +85,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel html5li
       12.9.1) CUINDEX=129 ;; \
       *) echo "Unsupported CUDA version: $CUDA_VERSION" && exit 1 ;; \
     esac \
- && CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5 python3 -m pip install --no-cache-dir -e "sgl-kernel/" --extra-index-url https://download.pytorch.org/whl/cu${CUINDEX} \
+ && CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -Dnlohmann_json_DIR=/usr/lib/cmake/nlohmann_json" python3 -m pip install --no-cache-dir -e "sgl-kernel/" --extra-index-url https://download.pytorch.org/whl/cu${CUINDEX} \
  && python3 -m pip install --no-cache-dir -e "python[${BUILD_TYPE}]" --extra-index-url https://download.pytorch.org/whl/cu${CUINDEX} \
  && python3 -m pip install --no-cache-dir nvidia-nccl-cu12==2.27.6 --force-reinstall --no-deps \
  && python3 -m flashinfer --download-cubin

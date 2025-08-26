@@ -2290,6 +2290,16 @@ class ServerArgs:
                 f"Disable hybrid SWA memory for {model_arch} as it is not yet supported."
             )
             self.disable_hybrid_swa_memory = True
+        elif model_arch in [
+            "Omega3ForCausalLM",
+            "Omega3ForConditionalGeneration",
+        ]:
+            # FIXME: https://github.com/sgl-project/sglang/pull/7367 is not compatible with gemma2 model.
+            # It failed at this test: https://github.com/sgl-project/sglang/actions/runs/16255155597/job/45890331952#step:4:736
+            logger.warning(
+                f"Disable hybrid SWA memory for {model_arch} as it is not yet supported."
+            )
+            self.disable_hybrid_swa_memory = True
 
     def adjust_mem_fraction_for_vlm(self, model_config):
         vision_config = getattr(model_config.hf_config, "vision_config", None)

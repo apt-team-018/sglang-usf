@@ -40,8 +40,6 @@ def get_attention_sliding_window_size(config):
     return config.sliding_window - 1
 
 
-# Adapted from:
-# https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/models/gemma3.py
 def extract_layer_index(prefix: str) -> int:
     """Extract the layer index from a prefix string."""
     parts = prefix.split(".")

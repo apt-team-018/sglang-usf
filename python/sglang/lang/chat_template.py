@@ -633,6 +633,11 @@ def match_gemma3_instruct(model_path: str):
     if re.search(r"gemma-3", model_path, re.IGNORECASE):
         return "gemma-it"
 
+@register_chat_template_matching_function
+def match_omega3_instruct(model_path: str):
+    if re.search(r"omega-3", model_path, re.IGNORECASE):
+        return "omega-it"
+
 
 @register_chat_template_matching_function
 def match_internvl_chat(model_path: str):
